@@ -4,13 +4,9 @@
 #include <opencv2/core/types_c.h>
 #include <opencv2/core/core.hpp>
 
-using cv::pyrDown;
-using cv::pyrUp;
-using cv::resize;
-
 EvmGdownIIR::EvmGdownIIR() {
     first = true;
-    blurredSize = Size(10, 10);
+    blurredSize = cv::Size(10, 10);
     fLow = 70/60./10;
     fHigh = 80/60./10;
     alpha = 200;
@@ -19,7 +15,7 @@ EvmGdownIIR::EvmGdownIIR() {
 EvmGdownIIR::~EvmGdownIIR() {
 }
 
-void EvmGdownIIR::onFrame(const Mat& src, Mat& out) {
+void EvmGdownIIR::onFrame(const cv::Mat& src, cv::Mat& out) {
     PROFILE_SCOPED();
 
     // convert to float
@@ -29,7 +25,7 @@ void EvmGdownIIR::onFrame(const Mat& src, Mat& out) {
 
     // apply spatial filter: blur and downsample
     PROFILE_START_DESC("pyrDown");
-    resize(srcFloat, blurred, blurredSize, 0, 0, CV_INTER_AREA);
+    resize(srcFloat, blurred, blurredSize, 0, 0, cv::INTER_AREA);
     PROFILE_STOP();
 
     if (first) {
@@ -53,7 +49,7 @@ void EvmGdownIIR::onFrame(const Mat& src, Mat& out) {
 
         // resize back to original size
         PROFILE_START_DESC("pyrUp");
-        resize(blurred, outFloat, src.size(), 0, 0, CV_INTER_LINEAR);
+        resize(blurred, outFloat, src.size(), 0, 0, cv::INTER_LINEAR);
         PROFILE_STOP();
 
         // add back to original frame

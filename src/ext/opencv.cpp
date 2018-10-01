@@ -1,6 +1,7 @@
 #include "opencv.hpp"
 #include <opencv2/imgproc/imgproc.hpp>
 #include "../profiler/Profiler.h"
+#include <string>
 
 namespace cv {
 
@@ -34,13 +35,13 @@ void interpolate(const Rect& a, const Rect& b, Rect& c, double p) {
     c.height = a.height * np + b.height * p + 0.5;
 }
 
-void printMatInfo(const string& name, InputArray _a) {
+void printMatInfo(const std::string& name, InputArray _a) {
     Mat a = _a.getMat();
-    cout << name << ": " << a.rows << "x" << a.cols
+    std::cout << name << ": " << a.rows << "x" << a.cols
             << " channels=" << a.channels()
             << " depth=" << a.depth()
             << " isContinuous=" << (a.isContinuous() ? "true" : "false")
-            << " isSubmatrix=" << (a.isSubmatrix() ? "true" : "false") << endl;
+            << " isSubmatrix=" << (a.isSubmatrix() ? "true" : "false") << std::endl;
 }
 
 }

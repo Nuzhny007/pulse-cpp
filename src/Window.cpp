@@ -6,9 +6,6 @@
 #include "Pulse.hpp"
 #include "profiler/Profiler.h"
 
-using std::stringstream;
-using namespace cv;
-
 Window::Window(Pulse& pulse) :
     pulse(pulse),
     WINDOW_NAME("EVM"),
@@ -20,18 +17,18 @@ Window::Window(Pulse& pulse) :
     trackbarMagnify = pulse.evm.magnify;
     trackbarAlpha = pulse.evm.alpha;
 
-    namedWindow(WINDOW_NAME);
-    createTrackbar(TRACKBAR_FACE_DETECTION_NAME, WINDOW_NAME, &trackbarFaceDetection, 1);
-    createTrackbar(TRACKBAR_MAGNIFY_NAME, WINDOW_NAME, &trackbarMagnify, 1);
-    createTrackbar(TRACKBAR_ALPHA_NAME, WINDOW_NAME, &trackbarAlpha, 500);
+    cv::namedWindow(WINDOW_NAME.c_str(), cv::WINDOW_NORMAL | cv::WINDOW_KEEPRATIO);
+	cv::createTrackbar(TRACKBAR_FACE_DETECTION_NAME, WINDOW_NAME, &trackbarFaceDetection, 1);
+	cv::createTrackbar(TRACKBAR_MAGNIFY_NAME, WINDOW_NAME, &trackbarMagnify, 1);
+	cv::createTrackbar(TRACKBAR_ALPHA_NAME, WINDOW_NAME, &trackbarAlpha, 500);
 
-    fpsPoint = Point(10, 15);
+    fpsPoint = cv::Point(10, 15);
 }
 
 Window::~Window() {
 }
 
-void Window::update(Mat& frame) {
+void Window::update(cv::Mat& frame) {
     PROFILE_SCOPED();
 
     // update pulse values for Eulerian video magnification
@@ -40,7 +37,7 @@ void Window::update(Mat& frame) {
     pulse.evm.alpha = trackbarAlpha;
 
     PROFILE_START_DESC("bgr2rgb");
-    cvtColor(frame, frame, CV_BGR2RGB);
+    cvtColor(frame, frame, cv::COLOR_BGR2RGB);
     PROFILE_STOP();
 
     // process frame
@@ -50,48 +47,44 @@ void Window::update(Mat& frame) {
     drawFps(frame);
 
     PROFILE_START_DESC("rgb2bgr");
-    cvtColor(frame, frame, CV_RGB2BGR);
+	cv::cvtColor(frame, frame, cv::COLOR_RGB2BGR);
     PROFILE_STOP();
 
     PROFILE_START_DESC("imshow");
-    imshow(WINDOW_NAME, frame);
+	cv::imshow(WINDOW_NAME, frame);
     PROFILE_STOP();
 }
 
-void Window::drawTrackbarValues(Mat& frame) {
+void Window::drawTrackbarValues(cv::Mat& frame) {
     PROFILE_SCOPED();
 
     const int namesX = 10;
     const int valuesX = 150;
     const int spaceY = 15;
 
-    stringstream ss;
+    cv::putText(frame, TRACKBAR_FACE_DETECTION_NAME,                cv::Point( namesX, spaceY * 2), cv::FONT_HERSHEY_PLAIN, 1, cv::BLUE);
+    cv::putText(frame, (trackbarFaceDetection == 1 ? "ON" : "OFF"), cv::Point(valuesX, spaceY * 2), cv::FONT_HERSHEY_PLAIN, 1, cv::BLUE);
 
-    putText(frame, TRACKBAR_FACE_DETECTION_NAME,                Point( namesX, spaceY * 2), FONT_HERSHEY_PLAIN, 1, BLUE);
-    putText(frame, (trackbarFaceDetection == 1 ? "ON" : "OFF"), Point(valuesX, spaceY * 2), FONT_HERSHEY_PLAIN, 1, BLUE);
+	cv::putText(frame, TRACKBAR_MAGNIFY_NAME, cv::Point(namesX, spaceY * 3), cv::FONT_HERSHEY_PLAIN, 1, cv::BLUE);
+	cv::putText(frame, (trackbarMagnify == 1 ? "ON" : "OFF"), cv::Point(valuesX, spaceY * 3), cv::FONT_HERSHEY_PLAIN, 1, cv::BLUE);
 
-    putText(frame, TRACKBAR_MAGNIFY_NAME,                 Point( namesX, spaceY * 3), FONT_HERSHEY_PLAIN, 1, BLUE);
-    putText(frame, (trackbarMagnify == 1 ? "ON" : "OFF"), Point(valuesX, spaceY * 3), FONT_HERSHEY_PLAIN, 1, BLUE);
-
-    ss.str("");
-    ss << trackbarAlpha;
-    putText(frame, TRACKBAR_ALPHA_NAME, Point( namesX, spaceY * 4), FONT_HERSHEY_PLAIN, 1, BLUE);
-    putText(frame, ss.str(),            Point(valuesX, spaceY * 4), FONT_HERSHEY_PLAIN, 1, BLUE);
+	cv::putText(frame, TRACKBAR_ALPHA_NAME, cv::Point( namesX, spaceY * 4), cv::FONT_HERSHEY_PLAIN, 1, cv::BLUE);
+	cv::putText(frame, std::to_string(trackbarAlpha), cv::Point(valuesX, spaceY * 4), cv::FONT_HERSHEY_PLAIN, 1, cv::BLUE);
 }
 
-void Window::drawFps(Mat& frame) {
+void Window::drawFps(cv::Mat& frame) {
     PROFILE_SCOPED();
 
     if (fps.update()) {
         PROFILE_SCOPED_DESC("fps string");
-        stringstream ss;
+        std::stringstream ss;
         ss.precision(3);
         ss << "FPS: " << fps.fps;
         fpsString = ss.str();
     }
 
     PROFILE_START_DESC("fps drawing");
-    putText(frame, fpsString, fpsPoint, FONT_HERSHEY_PLAIN, 1, BLUE);
+    cv::putText(frame, fpsString, fpsPoint, cv::FONT_HERSHEY_PLAIN, 1, cv::BLUE);
     PROFILE_STOP();
 }
 
@@ -107,15 +100,15 @@ bool Window::Fps::update() {
     PROFILE_SCOPED();
 
     if (currentFrame == 0) {
-        lastFpsTime = (double)getTickCount();
+        lastFpsTime = (double)cv::getTickCount();
     }
 
     currentFrame++;
 
     if (currentFrame % 30 == 0) {
         PROFILE_SCOPED_DESC("fps tick");
-        double now = (double)getTickCount();
-        double diff = (now - lastFpsTime) * 1000. / getTickFrequency();
+        double now = (double)cv::getTickCount();
+        double diff = (now - lastFpsTime) * 1000. / cv::getTickFrequency();
 
         if (diff > 0) {
             fps = (currentFrame - lastFrame) * 1000 / diff;

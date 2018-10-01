@@ -5,9 +5,6 @@
 #include "ext/opencv.hpp"
 #include "profiler/Profiler.h"
 
-using std::stringstream;
-using namespace cv;
-
 Pulse::Pulse() {
     maxSignalSize = 100;
     relativeMinFaceSize = 0.4;
@@ -22,7 +19,7 @@ Pulse::Pulse() {
 Pulse::~Pulse() {
 }
 
-void Pulse::load(const string& filename) {
+void Pulse::load(const std::string& filename) {
     classifier.load(filename);
 }
 
@@ -30,25 +27,25 @@ void Pulse::start(int width, int height) {
     now = 0;
     lastFaceDetectionTimestamp = 0;
     lastBpmTimestamp = 0;
-    minFaceSize = Size(min(width, height) * relativeMinFaceSize, min(width, height) * relativeMinFaceSize);
+    minFaceSize = cv::Size(std::min(width, height) * relativeMinFaceSize, std::min(width, height) * relativeMinFaceSize);
     faces.clear();
     nextFaceId = 1;
 }
 
-void Pulse::onFrame(Mat& frame) {
+void Pulse::onFrame(cv::Mat& frame) {
     PROFILE_SCOPED();
 
     // count frames
-    now = getTickCount();
+    now = cv::getTickCount();
 
     if (faceDetection.enabled) {
         // detect faces only every second
-        if ((now - lastFaceDetectionTimestamp) * 1000. / getTickFrequency() >= 1000) {
-            lastFaceDetectionTimestamp = getTickCount();
+        if ((now - lastFaceDetectionTimestamp) * 1000. / cv::getTickFrequency() >= 1000) {
+            lastFaceDetectionTimestamp = cv::getTickCount();
 
             PROFILE_START_DESC("detect faces");
             // detect faces
-            cvtColor(frame, gray, CV_RGB2GRAY);
+			cv::cvtColor(frame, gray, cv::COLOR_RGB2GRAY);
             classifier.detectMultiScale(frame, boxes, 1.1, 3, 0, minFaceSize);
             PROFILE_STOP();
 
@@ -111,10 +108,10 @@ void Pulse::onFrame(Mat& frame) {
             double r = relativeMinFaceSize;
             int w = frame.size().width;
             int h = frame.size().height;
-            Point tl = Point((1 - r) * w / 2, (1 - r) * h / 2);
-            Point br = Point((1 + r) * w / 2, (1 + r) * h / 2);
-            Face face = Face(nextFaceId++, Rect(tl, br), deleteFaceIn);
-            face.evm.box = Rect(tl, br);
+			cv::Point tl = cv::Point((1 - r) * w / 2, (1 - r) * h / 2);
+			cv::Point br = cv::Point((1 + r) * w / 2, (1 + r) * h / 2);
+            Face face = Face(nextFaceId++, cv::Rect(tl, br), deleteFaceIn);
+            face.evm.box = cv::Rect(tl, br);
             faces.push_back(face);
             faceDetection.disabledFaceId = face.id;
         }
@@ -122,12 +119,12 @@ void Pulse::onFrame(Mat& frame) {
     }
 }
 
-int Pulse::nearestFace(const Rect& box) {
+int Pulse::nearestFace(const cv::Rect& box) {
     PROFILE_SCOPED();
 
     int index = -1;
     int min = -1;
-    Point p;
+	cv::Point p;
 
     // search for first unselected face
     for (size_t i = 0; i < faces.size(); i++) {
@@ -159,11 +156,11 @@ int Pulse::nearestFace(const Rect& box) {
     return index;
 }
 
-void Pulse::onFace(Mat& frame, Face& face, const Rect& box) {
+void Pulse::onFace(cv::Mat& frame, Face& face, const cv::Rect& box) {
     PROFILE_SCOPED();
 
     // only show magnified face when there is pulse
-    Mat roi = !evm.magnify
+	cv::Mat roi = !evm.magnify
         || (evm.magnify && face.existsPulse)
         || (evm.magnify && !faceDetection.enabled)
         ? frame(face.evm.box) : face.evm.out;
@@ -197,12 +194,12 @@ void Pulse::onFace(Mat& frame, Face& face, const Rect& box) {
     }
     PROFILE_START_DESC("push back raw and timestamp");
     face.raw.push_back<double>(mean(roi)(1)); // grab green channel
-    face.timestamps.push_back<double>(getTickCount());
+    face.timestamps.push_back<double>(cv::getTickCount());
     PROFILE_STOP();
 
     PROFILE_START_DESC("verify if raw signal is stable enough");
-    Scalar rawStdDev;
-    meanStdDev(face.raw, Scalar(), rawStdDev);
+	cv::Scalar rawStdDev;
+    meanStdDev(face.raw, cv::Scalar(), rawStdDev);
     const bool stable = rawStdDev(0) <= (evm.magnify ? 1 : 0) * evm.alpha * 0.045 + 1;
     PROFILE_STOP();
 
@@ -210,12 +207,12 @@ void Pulse::onFace(Mat& frame, Face& face, const Rect& box) {
         // calculate current FPS
         currentFps = this->fps;
         if (currentFps == 0) {
-            const double diff = (face.timestamps(face.timestamps.rows - 1) - face.timestamps(0)) * 1000. / getTickFrequency();
+            const double diff = (face.timestamps(face.timestamps.rows - 1) - face.timestamps(0)) * 1000. / cv::getTickFrequency();
             currentFps = face.timestamps.rows * 1000 / diff;
         }
 
         // process raw signal
-        detrend<double>(face.raw, face.pulse, currentFps / 2);
+        cv::detrend<double>(face.raw, face.pulse, currentFps / 2);
         normalization(face.pulse, face.pulse);
         meanFilter(face.pulse, face.pulse);
 
@@ -239,7 +236,7 @@ void Pulse::onFace(Mat& frame, Face& face, const Rect& box) {
         if (face.pulse.rows == face.raw.rows) {
             face.pulse = 0;
         } else {
-            face.pulse = Mat1d::zeros(face.raw.rows, 1);
+            face.pulse = cv::Mat1d::zeros(face.raw.rows, 1);
         }
         face.peaks.clear();
         face.bpms.pop_back(face.bpms.rows);
@@ -267,7 +264,7 @@ void Pulse::peaks(Face& face) {
     for (int i = 1; i < face.raw.rows; i++) {
 
         // if more than X milliseconds passed search for peak in this segment
-        const double diff = (face.timestamps(i) - face.timestamps(lastIndex)) * 1000. / getTickFrequency();
+        const double diff = (face.timestamps(i) - face.timestamps(lastIndex)) * 1000. / cv::getTickFrequency();
         if (diff >= 200) {
 
             // find max in this segment
@@ -279,7 +276,7 @@ void Pulse::peaks(Face& face) {
             // if max is not at the boundaries and is higher than the threshold
             if (peakValue > peakValueThreshold && lastIndex < peakIndex && peakIndex < i) {
                 const double peakTimestamp = face.timestamps(peakIndex);
-                const double peakDiff = (peakTimestamp - lastPeakTimestamp) * 1000. / getTickFrequency();
+                const double peakDiff = (peakTimestamp - lastPeakTimestamp) * 1000. / cv::getTickFrequency();
 
                 // if peak is too close to last peak and has an higher value
                 if (peakDiff <= 200 && peakValue > lastPeakValue) {
@@ -305,13 +302,13 @@ void Pulse::peaks(Face& face) {
     }
 
     // verify if peaks describe a valid pulse signal
-    Scalar peakValuesStdDev;
-    meanStdDev(face.peaks.values, Scalar(), peakValuesStdDev);
-    const double diff = (face.timestamps(face.raw.rows - 1) - face.timestamps(0)) / getTickFrequency();
+	cv::Scalar peakValuesStdDev;
+	cv::meanStdDev(face.peaks.values, cv::Scalar(), peakValuesStdDev);
+    const double diff = (face.timestamps(face.raw.rows - 1) - face.timestamps(0)) / cv::getTickFrequency();
 
-    Scalar peakTimestampsStdDev;
+	cv::Scalar peakTimestampsStdDev;
     if (face.peaks.indices.rows >= 3) {
-        meanStdDev((face.peaks.timestamps.rowRange(1, face.peaks.timestamps.rows) - face.peaks.timestamps.rowRange(0, face.peaks.timestamps.rows - 1)) / getTickFrequency(), Scalar(), peakTimestampsStdDev);
+		cv::meanStdDev((face.peaks.timestamps.rowRange(1, face.peaks.timestamps.rows) - face.peaks.timestamps.rowRange(0, face.peaks.timestamps.rows - 1)) / cv::getTickFrequency(), cv::Scalar(), peakTimestampsStdDev);
     }
 
     // TODO extract constants to class?
@@ -340,9 +337,9 @@ void Pulse::Face::Peaks::push(int index, double timestamp, double value) {
 }
 
 void Pulse::Face::Peaks::pop() {
-    indices.pop_back(min(indices.rows, 1));
-    timestamps.pop_back(min(timestamps.rows, 1));
-    values.pop_back(min(values.rows, 1));
+    indices.pop_back(std::min(indices.rows, 1));
+    timestamps.pop_back(std::min(timestamps.rows, 1));
+    values.pop_back(std::min(values.rows, 1));
 }
 
 void Pulse::Face::Peaks::clear() {
@@ -361,8 +358,8 @@ void Pulse::bpm(Face& face) {
     // band limit
     const int low = total * 40./60./currentFps + 1;
     const int high = total * 240./60./currentFps + 1;
-    powerSpectrum.rowRange(0, min((size_t)low, (size_t)total)) = ZERO;
-    powerSpectrum.pop_back(min((size_t)(total - high), (size_t)total));
+    powerSpectrum.rowRange(0, std::min((size_t)low, (size_t)total)) = cv::ZERO;
+    powerSpectrum.pop_back(std::min((size_t)(total - high), (size_t)total));
 
     // power spectrum
     pow(powerSpectrum, 2, powerSpectrum);
@@ -377,8 +374,8 @@ void Pulse::bpm(Face& face) {
     }
 
     // update BPM when none available or after one second
-    if (face.bpm == 0 || (now - lastBpmTimestamp) * 1000. / getTickFrequency() >= 1000) {
-        lastBpmTimestamp = getTickCount();
+    if (face.bpm == 0 || (now - lastBpmTimestamp) * 1000. / cv::getTickFrequency() >= 1000) {
+        lastBpmTimestamp = cv::getTickCount();
 
         // average calculated BPMs since last time
         face.bpm = mean(face.bpms)(0);
@@ -391,44 +388,44 @@ void Pulse::bpm(Face& face) {
     }
 }
 
-void Pulse::draw(Mat& frame, const Face& face, const Rect& box) {
+void Pulse::draw(cv::Mat& frame, const Face& face, const cv::Rect& box) {
     PROFILE_SCOPED();
 
-    rectangle(frame, box, BLUE);
-    rectangle(frame, face.box, BLUE, 2);
-    rectangle(frame, face.evm.box, GREEN);
+    rectangle(frame, box, cv::BLUE);
+    rectangle(frame, face.box, cv::BLUE, 2);
+    rectangle(frame, face.evm.box, cv::GREEN);
 
     // bottom left point of face box
-    Point bl = face.box.tl() + Point(0, face.box.height);
-    Point g;
+	cv::Point bl = face.box.tl() + cv::Point(0, face.box.height);
+	cv::Point g;
     for (int i = 0; i < face.raw.rows; i++) {
-        g = bl + Point(i, -face.raw(i) + 50);
-        line(frame, g, g, GREEN);
-        g = bl + Point(i, -face.pulse(i) * 10 - 50);
-        line(frame, g, g, RED, face.existsPulse ? 2 : 1);
+        g = bl + cv::Point(i, -face.raw(i) + 50);
+        line(frame, g, g, cv::GREEN);
+        g = bl + cv::Point(i, -face.pulse(i) * 10 - 50);
+        line(frame, g, g, cv::RED, face.existsPulse ? 2 : 1);
     }
 
     // peaks
     for (int i = 0; i < face.peaks.indices.rows; i++) {
         const int index = face.peaks.indices(i);
-        g = bl + Point(index, -face.pulse(index) * 10 - 50);
-        circle(frame, g, 1, BLUE, 2);
+        g = bl + cv::Point(index, -face.pulse(index) * 10 - 50);
+        circle(frame, g, 1, cv::BLUE, 2);
     }
 
-    stringstream ss;
+    std::stringstream ss;
 
     // id
     ss << face.id;
-    putText(frame, ss.str(), face.box.tl(), FONT_HERSHEY_PLAIN, 2, BLUE, 2);
+    putText(frame, ss.str(), face.box.tl(), cv::FONT_HERSHEY_PLAIN, 2, cv::BLUE, 2);
     ss.str("");
 
     // bpm
     ss.precision(3);
     ss << face.bpm;
-    putText(frame, ss.str(), bl, FONT_HERSHEY_PLAIN, 2, RED, 2);
+    putText(frame, ss.str(), bl, cv::FONT_HERSHEY_PLAIN, 2, cv::RED, 2);
 }
 
-Pulse::Face::Face(int id, const Rect& box, int deleteIn) {
+Pulse::Face::Face(int id, const cv::Rect& box, int deleteIn) {
     this->id = id;
     this->box = box;
     this->deleteIn = deleteIn;
@@ -437,14 +434,14 @@ Pulse::Face::Face(int id, const Rect& box, int deleteIn) {
     this->noPulseIn = 0;
 }
 
-int Pulse::Face::nearestBox(const vector<Rect>& boxes) {
+int Pulse::Face::nearestBox(const std::vector<cv::Rect>& boxes) {
     PROFILE_SCOPED();
 
     if (boxes.empty()) {
         return -1;
     }
     int index = 0;
-    Point p = box.tl() - boxes.at(0).tl();
+	cv::Point p = box.tl() - boxes.at(0).tl();
     int min = p.x * p.x + p.y * p.y;
     for (size_t i = 1; i < boxes.size(); i++) {
         p = box.tl() - boxes.at(i).tl();
@@ -457,18 +454,18 @@ int Pulse::Face::nearestBox(const vector<Rect>& boxes) {
     return index;
 }
 
-void Pulse::Face::updateBox(const Rect& a) {
+void Pulse::Face::updateBox(const cv::Rect& a) {
     PROFILE_SCOPED();
 
     // update box position and size
-    Point p = box.tl() - a.tl();
+	cv::Point p = box.tl() - a.tl();
     double d = (p.x * p.x + p.y * p.y) / pow(box.width / 3., 2.);
-    interpolate(box, a, box, min(1., d));
+    interpolate(box, a, box, std::min(1., d));
 
     // update EVM box
-    Point c = box.tl() + Point(box.size().width * .5, box.size().height * .5);
-    Point r(box.width * .275, box.height * .425);
-    evm.box = Rect(c - r, c + r);
+	cv::Point c = box.tl() + cv::Point(box.size().width * .5, box.size().height * .5);
+	cv::Point r(box.width * .275, box.height * .425);
+    evm.box = cv::Rect(c - r, c + r);
 }
 
 void Pulse::Face::reset() {

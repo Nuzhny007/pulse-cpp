@@ -5,27 +5,23 @@
 #include <opencv2/core/core.hpp>
 #include "Pulse.hpp"
 
-using std::string;
-using cv::Mat;
-using cv::Point;
-
 class Window {
 public:
     Window(Pulse& pulse);
     virtual ~Window();
 
-    void update(Mat& frame);
+    void update(cv::Mat& frame);
 
 private:
-    void drawTrackbarValues(Mat& frame);
-    void drawFps(Mat& frame);
+    void drawTrackbarValues(cv::Mat& frame);
+    void drawFps(cv::Mat& frame);
 
     Pulse& pulse;
 
-    const string WINDOW_NAME;
-    const string TRACKBAR_FACE_DETECTION_NAME;
-    const string TRACKBAR_MAGNIFY_NAME;
-    const string TRACKBAR_ALPHA_NAME;
+    const std::string WINDOW_NAME;
+    const std::string TRACKBAR_FACE_DETECTION_NAME;
+    const std::string TRACKBAR_MAGNIFY_NAME;
+    const std::string TRACKBAR_ALPHA_NAME;
 
     int trackbarFaceDetection;
     int trackbarMagnify;
@@ -44,8 +40,8 @@ private:
     };
 
     Fps fps;
-    string fpsString;
-    Point fpsPoint;
+    std::string fpsString;
+	cv::Point fpsPoint;
 
 };
 

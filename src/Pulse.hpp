@@ -6,23 +6,14 @@
 #include <opencv2/objdetect/objdetect.hpp>
 #include "EvmGdownIIR.hpp"
 
-using std::string;
-using std::vector;
-using cv::Mat;
-using cv::Mat1d;
-using cv::Mat1i;
-using cv::Rect;
-using cv::Size;
-using cv::CascadeClassifier;
-
 class Pulse {
 public:
     Pulse();
     virtual ~Pulse();
 
-    void load(const string& filename);
+    void load(const std::string& filename);
     void start(int width, int height);
-    void onFrame(Mat& frame);
+    void onFrame(cv::Mat& frame);
 
     int maxSignalSize;
     double relativeMinFaceSize;
@@ -41,55 +32,55 @@ public:
         int deleteIn;
         bool selected;
 
-        Rect box;
-        Mat1d timestamps;
-        Mat1d raw;
-        Mat1d pulse;
+		cv::Rect box;
+		cv::Mat1d timestamps;
+		cv::Mat1d raw;
+		cv::Mat1d pulse;
         int noPulseIn;
         bool existsPulse;
 
-        Mat1d bpms;
+		cv::Mat1d bpms;
         double bpm;
 
         struct {
             EvmGdownIIR evm;
-            Mat out;
-            Rect box;
+            cv::Mat out;
+			cv::Rect box;
         } evm;
 
         struct Peaks {
-            Mat1i indices;
-            Mat1d timestamps;
-            Mat1d values;
+			cv::Mat1i indices;
+			cv::Mat1d timestamps;
+			cv::Mat1d values;
 
             void push(int index, double timestamp, double value);
             void pop();
             void clear();
         } peaks;
 
-        Face(int id, const Rect& box, int deleteIn);
-        int nearestBox(const vector<Rect>& boxes);
-        void updateBox(const Rect& box);
+        Face(int id, const cv::Rect& box, int deleteIn);
+        int nearestBox(const std::vector<cv::Rect>& boxes);
+        void updateBox(const cv::Rect& box);
         void reset();
     };
 
-    vector<Face> faces;
+	std::vector<Face> faces;
 
 private:
-    int nearestFace(const Rect& box);
-    void onFace(Mat& frame, Face& face, const Rect& box);
+    int nearestFace(const cv::Rect& box);
+    void onFace(cv::Mat& frame, Face& face, const cv::Rect& box);
     void peaks(Face& face);
     void bpm(Face& face);
-    void draw(Mat& frame, const Face& face, const Rect& box);
+    void draw(cv::Mat& frame, const Face& face, const cv::Rect& box);
 
     double now;
     double lastFaceDetectionTimestamp;
     double lastBpmTimestamp;
-    Size minFaceSize;
-    CascadeClassifier classifier;
-    Mat gray;
-    vector<Rect> boxes;
-    Mat1d powerSpectrum;
+	cv::Size minFaceSize;
+	cv::CascadeClassifier classifier;
+	cv::Mat gray;
+	std::vector<cv::Rect> boxes;
+	cv::Mat1d powerSpectrum;
     int nextFaceId;
     int deleteFaceIn;
     int holdPulseFor;

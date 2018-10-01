@@ -133,12 +133,15 @@ namespace Profiler {
             calls += b.calls;
         }
 
-        static inline u64 getticks_serial() {
+        static inline u64 getticks_serial()
+		{
+#if 0
     #if defined(__GNUC__)
             asm volatile("cpuid" : : : "%eax", "%ebx", "%ecx", "%edx" );
     #else
             __asm cpuid;
     #endif
+#endif
             return getticks();
         }
 
@@ -151,7 +154,12 @@ namespace Profiler {
     #elif defined(__ICC) || defined(__ICL)
         static inline u64 getticks() { return _rdtsc(); }
     #else
-        static inline u64 getticks() { __asm { rdtsc }; }
+        static inline u64 getticks()
+		{
+#if 0
+			__asm { rdtsc };
+#endif
+		}
     #endif
 
         u64 ticks, started;
