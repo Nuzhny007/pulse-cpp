@@ -5,7 +5,8 @@
 #include "ext/opencv.hpp"
 #include "profiler/Profiler.h"
 
-Pulse::Pulse() {
+Pulse::Pulse()
+{
     maxSignalSize = 100;
     relativeMinFaceSize = 0.4;
     deleteFaceIn = 1;
@@ -301,33 +302,37 @@ void Pulse::peaks(Face& face) {
         }
     }
 
-    // verify if peaks describe a valid pulse signal
-	cv::Scalar peakValuesStdDev;
-	cv::meanStdDev(face.peaks.values, cv::Scalar(), peakValuesStdDev);
-    const double diff = (face.timestamps(face.raw.rows - 1) - face.timestamps(0)) / cv::getTickFrequency();
+	if (!face.peaks.values.empty())
+	{
+		// verify if peaks describe a valid pulse signal
+		cv::Scalar peakValuesStdDev;
+		cv::meanStdDev(face.peaks.values, cv::Scalar(), peakValuesStdDev);
+		const double diff = (face.timestamps(face.raw.rows - 1) - face.timestamps(0)) / cv::getTickFrequency();
 
-	cv::Scalar peakTimestampsStdDev;
-    if (face.peaks.indices.rows >= 3) {
-		cv::meanStdDev((face.peaks.timestamps.rowRange(1, face.peaks.timestamps.rows) - face.peaks.timestamps.rowRange(0, face.peaks.timestamps.rows - 1)) / cv::getTickFrequency(), cv::Scalar(), peakTimestampsStdDev);
-    }
+		cv::Scalar peakTimestampsStdDev;
+		if (face.peaks.indices.rows >= 3) {
+			cv::meanStdDev((face.peaks.timestamps.rowRange(1, face.peaks.timestamps.rows) - face.peaks.timestamps.rowRange(0, face.peaks.timestamps.rows - 1)) / cv::getTickFrequency(), cv::Scalar(), peakTimestampsStdDev);
+		}
 
-    // TODO extract constants to class?
-    bool validPulse =
-            2 <= face.peaks.indices.rows &&
-            40/60 * diff <= face.peaks.indices.rows &&
-            face.peaks.indices.rows <= 240/60 * diff &&
-            peakValuesStdDev(0) <= 0.5 &&
-            peakTimestampsStdDev(0) <= 0.5;
+		// TODO extract constants to class?
+		bool validPulse =
+			2 <= face.peaks.indices.rows &&
+			40 / 60 * diff <= face.peaks.indices.rows &&
+			face.peaks.indices.rows <= 240 / 60 * diff &&
+			peakValuesStdDev(0) <= 0.5 &&
+			peakTimestampsStdDev(0) <= 0.5;
 
-    if (!face.existsPulse && validPulse) {
-        // pulse become valid
-        face.noPulseIn = holdPulseFor;
-        face.existsPulse = true;
-    } else if (face.existsPulse && !validPulse) {
-        // pulse become invalid
-        if (face.noPulseIn > 0) face.noPulseIn--; // keep pulse for a few frames
-        else face.existsPulse = false; // pulse has been invalid for too long
-    }
+		if (!face.existsPulse && validPulse) {
+			// pulse become valid
+			face.noPulseIn = holdPulseFor;
+			face.existsPulse = true;
+		}
+		else if (face.existsPulse && !validPulse) {
+			// pulse become invalid
+			if (face.noPulseIn > 0) face.noPulseIn--; // keep pulse for a few frames
+			else face.existsPulse = false; // pulse has been invalid for too long
+		}
+	}
 }
 
 void Pulse::Face::Peaks::push(int index, double timestamp, double value) {
